@@ -14,7 +14,7 @@ pub fn process_token_list(token_list: &Vec<Token>) -> Option<i32> {
     if first_token.token_type == TokenType::Value {
         result = first_token.value;
     } else {
-        return None
+        return None;
     }
 
     while index < size {

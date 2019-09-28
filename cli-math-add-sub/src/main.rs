@@ -16,5 +16,7 @@ fn main() {
         } else {
             println!("could not process given expression");
         }
+    } else {
+        println!("no expression given");
     }
 }
