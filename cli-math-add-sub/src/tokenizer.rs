@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
     Value,
@@ -54,7 +56,37 @@ pub fn tokenize_expression(expression: &str) -> Vec<Token> {
         }
     }
 
+    sort_token_list(&mut matches);
+
     matches
+}
+
+fn sort_token_list(token_list: &mut Vec<Token>) {
+    token_list.sort_by(|a, b| {
+        let a_is_value = a.token_type == TokenType::Value;
+        let b_is_value = b.token_type == TokenType::Value;
+
+        if a_is_value && b_is_value {
+            return Ordering::Equal;
+        } else if a_is_value && !b_is_value {
+            return Ordering::Less;
+        }
+
+        Ordering::Greater
+    });
+
+    let size = token_list.len();
+    let mut index: usize = 0;
+
+    while index < size {
+        if token_list.get(index).unwrap().token_type == TokenType::Operator {
+            break;
+        }
+
+        index += 1;
+    }
+
+    token_list.get_mut(0..index).unwrap().reverse();
 }
 
 fn get_operator_type(value: char) -> OperationType {
