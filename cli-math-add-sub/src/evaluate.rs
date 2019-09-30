@@ -7,39 +7,52 @@ pub fn process_token_list(token_list: &Vec<Token>) -> Option<i32> {
         return Some(0);
     }
 
-    let mut index = 1;
-    let mut result;
-    let first_token = token_list.get(0).unwrap();
-
-    if first_token.token_type == TokenType::Value {
-        result = first_token.value;
-    } else {
-        return None;
-    }
+    let mut index = 0;
+    let mut result = 0;
+    let mut value_offset = 0;
+    let mut first_token = true;
 
     while index < size {
         let token = token_list.get(index).unwrap();
 
         if token.token_type == TokenType::Operator {
-            if index + 1 < size {
-                let opt_value = process_operation(
-                    &token.operation,
-                    &result,
-                    &token_list.get(index + 1).unwrap().value,
-                );
+            if first_token {
+                // this is the first found "operator" token
+                value_offset = index - 1;
+            }
+
+            if value_offset > 0 {
+                let opt_value = if first_token {
+                    // the first token requires two values from the "token_list"
+                    process_operation(
+                        &token.operation,
+                        &token_list.get(value_offset).unwrap().value,
+                        &token_list.get(value_offset - 1).unwrap().value,
+                    )
+                } else {
+                    // every other token after the first one only needs one value from the "token_list"
+                    process_operation(
+                        &token.operation,
+                        &result,
+                        &token_list.get(value_offset - 1).unwrap().value,
+                    )
+                };
 
                 if opt_value.is_some() {
                     result = opt_value.unwrap();
-                    index += 2;
+                    value_offset -= 1;
                 } else {
                     return None;
                 }
             } else {
                 return None;
             }
-        } else {
-            index += 1;
+
+            // all tokens after the current aren't the first
+            first_token = false;
         }
+
+        index += 1;
     }
 
     Some(result)
