@@ -9,6 +9,7 @@ pub fn process_token_list(token_list: &Vec<Token>) -> Option<i32> {
 
     let mut index = 0;
     let mut result = 0;
+    let mut token_index = 0;
     let mut value_offset = 0;
     let mut first_token = true;
 
@@ -18,29 +19,30 @@ pub fn process_token_list(token_list: &Vec<Token>) -> Option<i32> {
         if token.token_type == TokenType::Operator {
             if first_token {
                 // this is the first found "operator" token
-                value_offset = index - 1;
+                value_offset = 0;
+                token_index = index;
             }
 
-            if value_offset > 0 {
+            if value_offset + 1 < token_index {
                 let opt_value = if first_token {
                     // the first token requires two values from the "token_list"
                     process_operation(
                         &token.operation,
                         &token_list.get(value_offset).unwrap().value,
-                        &token_list.get(value_offset - 1).unwrap().value,
+                        &token_list.get(value_offset + 1).unwrap().value,
                     )
                 } else {
                     // every other token after the first one only needs one value from the "token_list"
                     process_operation(
                         &token.operation,
                         &result,
-                        &token_list.get(value_offset - 1).unwrap().value,
+                        &token_list.get(value_offset + 1).unwrap().value,
                     )
                 };
 
                 if opt_value.is_some() {
                     result = opt_value.unwrap();
-                    value_offset -= 1;
+                    value_offset += 1;
                 } else {
                     return None;
                 }
