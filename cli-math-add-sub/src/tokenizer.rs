@@ -13,7 +13,7 @@ pub enum OperationType {
     Subtraction,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub value: i32,
     pub token_type: TokenType,
@@ -74,19 +74,6 @@ fn sort_token_list(token_list: &mut Vec<Token>) {
 
         Ordering::Greater
     });
-
-    let size = token_list.len();
-    let mut index: usize = 0;
-
-    while index < size {
-        if token_list.get(index).unwrap().token_type == TokenType::Operator {
-            break;
-        }
-
-        index += 1;
-    }
-
-    token_list.get_mut(0..index).unwrap().reverse();
 }
 
 fn get_operator_type(value: char) -> OperationType {
@@ -116,5 +103,35 @@ fn create_operator_token(operator_type: OperationType) -> Token {
         operation: operator_type,
         token_type: TokenType::Operator,
         value: 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_int_token_1() {
+        assert!(parse_int_token(&String::from("1")).is_some());
+        assert!(parse_int_token(&String::from("A")).is_none());
+    }
+
+    #[test]
+    fn test_create_operator_token_1() {
+        assert_eq!(
+            Token {
+                operation: OperationType::None,
+                token_type: TokenType::Operator,
+                value: 0
+            },
+            create_operator_token(OperationType::None)
+        );
+    }
+
+    #[test]
+    fn test_get_operator_type_1() {
+        assert_eq!(OperationType::Addition, get_operator_type('+'));
+        assert_eq!(OperationType::Subtraction, get_operator_type('-'));
+        assert_eq!(OperationType::None, get_operator_type('a'));
     }
 }
