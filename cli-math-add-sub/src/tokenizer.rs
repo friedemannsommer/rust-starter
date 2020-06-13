@@ -33,13 +33,11 @@ pub fn tokenize_expression(expression: &str) -> Vec<Token> {
 
         if operation_type != OperationType::None {
             if current_value.len() != 0 {
-                let int_token = parse_int_token(&current_value.iter().collect::<String>());
+                if let Some(token) = parse_int_token(&current_value.iter().collect::<String>()) {
+                    matches.push(token);
+                }
 
                 current_value.clear();
-
-                if int_token.is_some() {
-                    matches.push(int_token.unwrap());
-                }
             }
 
             matches.push(create_operator_token(operation_type));
@@ -49,10 +47,8 @@ pub fn tokenize_expression(expression: &str) -> Vec<Token> {
     }
 
     if current_value.len() != 0 {
-        let int_token = parse_int_token(&current_value.iter().collect::<String>());
-
-        if int_token.is_some() {
-            matches.push(int_token.unwrap());
+        if let Some(token) = parse_int_token(&current_value.iter().collect::<String>()) {
+            matches.push(token);
         }
     }
 
@@ -84,18 +80,16 @@ fn get_operator_type(value: char) -> OperationType {
     }
 }
 
-fn parse_int_token(str_value: &String) -> Option<Token> {
-    let int_value = str_value.parse::<i32>();
-
-    if int_value.is_ok() {
+fn parse_int_token(str_value: &str) -> Option<Token> {
+    if let Ok(int_value) = str_value.parse::<i32>() {
         return Some(Token {
-            value: int_value.unwrap(),
+            value: int_value,
             operation: OperationType::None,
             token_type: TokenType::Value,
         });
-    } else {
-        return None;
     }
+
+    None
 }
 
 fn create_operator_token(operator_type: OperationType) -> Token {

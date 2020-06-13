@@ -6,17 +6,15 @@ mod tokenizer;
 fn main() {
     let input = env::args().last();
 
-    if input.is_some() {
-        let expression = input.unwrap();
+    if let Some(expression) = input {
         let token_list = tokenizer::tokenize_expression(&expression);
-        let result = evaluate::process_token_list(&token_list);
 
-        if result.is_some() {
-            println!("result: {}", result.unwrap());
+        if let Some(result) = evaluate::process_token_list(&token_list) {
+            println!("{}", result);
         } else {
-            println!("could not process given expression");
+            eprintln!("could not process given expression");
         }
     } else {
-        println!("no expression given");
+        eprintln!("no expression given");
     }
 }
