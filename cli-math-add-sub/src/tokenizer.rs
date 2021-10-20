@@ -1,102 +1,78 @@
 use std::cmp::Ordering;
-
-#[derive(Debug, PartialEq)]
-pub enum TokenType {
-    Value,
-    Operator,
-}
+use std::iter::Peekable;
 
 #[derive(Debug, PartialEq)]
 pub enum OperationType {
-    None,
     Addition,
     Subtraction,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Token {
-    pub value: i32,
-    pub token_type: TokenType,
-    pub operation: OperationType,
+pub enum Token {
+    Value(i64),
+    Operator(OperationType),
 }
 
 pub fn tokenize_expression(expression: &str) -> Vec<Token> {
     let mut matches: Vec<Token> = Vec::new();
-    let mut current_value: Vec<char> = Vec::new();
+    let mut iterator = expression.chars().peekable();
 
-    for current_char in expression.chars() {
-        let operation_type = get_operator_type(current_char);
-
-        if operation_type == OperationType::None && !current_char.is_numeric() {
-            continue;
-        }
-
-        if operation_type != OperationType::None {
-            if current_value.len() != 0 {
-                if let Some(token) = parse_int_token(&current_value.iter().collect::<String>()) {
-                    matches.push(token);
-                }
-
-                current_value.clear();
+    while let Some(current_char) = iterator.next() {
+        match current_char {
+            '+' => {
+                matches.push(Token::Operator(OperationType::Addition));
             }
-
-            matches.push(create_operator_token(operation_type));
-        } else {
-            current_value.push(current_char);
+            '-' => {
+                matches.push(Token::Operator(OperationType::Subtraction));
+            }
+            '0'..='9' => {
+                matches.push(parse_int_token(&current_char, &mut iterator).expect("Couldn't parse given digit(s)"));
+            }
+            _ => {}
         }
     }
 
-    if current_value.len() != 0 {
-        if let Some(token) = parse_int_token(&current_value.iter().collect::<String>()) {
-            matches.push(token);
-        }
-    }
-
-    sort_token_list(&mut matches);
-
-    matches
+    sort_token_list(matches)
 }
 
-fn sort_token_list(token_list: &mut Vec<Token>) {
+fn sort_token_list(mut token_list: Vec<Token>) -> Vec<Token> {
     token_list.sort_by(|a, b| {
-        let a_is_value = a.token_type == TokenType::Value;
-        let b_is_value = b.token_type == TokenType::Value;
-
-        if a_is_value && b_is_value {
-            return Ordering::Equal;
-        } else if a_is_value && !b_is_value {
-            return Ordering::Less;
+        match a {
+            Token::Value(_) => {
+                match b {
+                    Token::Operator(_) => Ordering::Less,
+                    _ => Ordering::Equal
+                }
+            }
+            Token::Operator(_) => {
+                match b {
+                    Token::Value(_) => Ordering::Greater,
+                    _ => Ordering::Equal
+                }
+            }
         }
-
-        Ordering::Greater
     });
+
+    token_list
 }
 
-fn get_operator_type(value: char) -> OperationType {
-    match value {
-        '+' => OperationType::Addition,
-        '-' => OperationType::Subtraction,
-        _ => OperationType::None,
-    }
-}
+fn parse_int_token<CharIter: Iterator<Item=char>>(current: &char, iterator: &mut Peekable<CharIter>) -> Option<Token> {
+    let mut num = current.to_digit(10)?;
 
-fn parse_int_token(str_value: &str) -> Option<Token> {
-    if let Ok(int_value) = str_value.parse::<i32>() {
-        return Some(Token {
-            value: int_value,
-            operation: OperationType::None,
-            token_type: TokenType::Value,
-        });
+    while let Some(Some(digit)) = iterator.peek().map(|char| char.to_digit(10)) {
+        num = num.checked_mul(10)?.checked_add(digit)?;
+        iterator.next();
     }
 
-    None
+    Some(Token::Value(num as i64))
 }
 
-fn create_operator_token(operator_type: OperationType) -> Token {
-    Token {
-        operation: operator_type,
-        token_type: TokenType::Operator,
-        value: 0,
+impl Token {
+    pub fn get_opt_value(&self) -> Option<i64> {
+        match self {
+            Token::Value(value) => Some(*value),
+            _ => None
+        }
     }
 }
 
@@ -105,27 +81,66 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_int_token_1() {
-        assert!(parse_int_token(&String::from("1")).is_some());
-        assert!(parse_int_token(&String::from("A")).is_none());
-    }
-
-    #[test]
-    fn test_create_operator_token_1() {
+    fn test_valid_token_composition_1() {
         assert_eq!(
-            Token {
-                operation: OperationType::None,
-                token_type: TokenType::Operator,
-                value: 0
-            },
-            create_operator_token(OperationType::None)
+            tokenize_expression("1+2"),
+            vec![
+                Token::Value(1),
+                Token::Value(2),
+                Token::Operator(OperationType::Addition),
+            ]
         );
     }
 
     #[test]
-    fn test_get_operator_type_1() {
-        assert_eq!(OperationType::Addition, get_operator_type('+'));
-        assert_eq!(OperationType::Subtraction, get_operator_type('-'));
-        assert_eq!(OperationType::None, get_operator_type('a'));
+    fn test_valid_token_composition_2() {
+        assert_eq!(
+            tokenize_expression("100+200000"),
+            vec![
+                Token::Value(100),
+                Token::Value(200000),
+                Token::Operator(OperationType::Addition),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_valid_token_composition_3() {
+        assert_eq!(
+            tokenize_expression("123456789+0"),
+            vec![
+                Token::Value(123456789),
+                Token::Value(0),
+                Token::Operator(OperationType::Addition),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_invalid_token_composition_1() {
+        assert_eq!(
+            tokenize_expression("-100+200000"),
+            vec![
+                Token::Value(100),
+                Token::Value(200000),
+                Token::Operator(OperationType::Subtraction),
+                Token::Operator(OperationType::Addition),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_invalid_token_composition_2() {
+        assert_eq!(
+            tokenize_expression("-1+0+-"),
+            vec![
+                Token::Value(1),
+                Token::Value(0),
+                Token::Operator(OperationType::Subtraction),
+                Token::Operator(OperationType::Addition),
+                Token::Operator(OperationType::Addition),
+                Token::Operator(OperationType::Subtraction),
+            ]
+        );
     }
 }

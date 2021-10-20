@@ -1,68 +1,45 @@
-use crate::tokenizer::{OperationType, Token, TokenType};
+use crate::tokenizer::{OperationType, Token};
 
-pub fn process_token_list(token_list: &[Token]) -> Option<i32> {
-    let size = token_list.len();
+pub fn process_token_list(tokens: &[Token]) -> Option<i64> {
+    let size = tokens.len();
 
     if size == 0 {
         return Some(0);
     }
 
-    let mut index = 0;
     let mut result = 0;
     let mut token_index = 0;
-    let mut value_offset = 0;
-    let mut first_token = true;
+    let mut value_index = 0;
 
-    while index < size {
-        let token = &token_list[index];
+    for index in 0..size {
+        let token = &tokens[index];
 
-        if token.token_type == TokenType::Operator {
-            if first_token {
-                // this is the first found "operator" token
-                value_offset = 0;
+        if let Token::Operator(operator_type) = token {
+            if token_index == 0 {
                 token_index = index;
             }
 
-            if value_offset + 1 < token_index {
-                let opt_value = if first_token {
-                    // the first token requires two values from the "token_list"
-                    process_operation(
-                        &token.operation,
-                        token_list[value_offset].value,
-                        token_list[value_offset + 1].value,
-                    )
-                } else {
-                    // every other token after the first one only needs one value from the "token_list"
-                    process_operation(&token.operation, result, token_list[value_offset + 1].value)
-                };
-
-                if let Some(value) = opt_value {
-                    result = value;
-                    value_offset += 1;
-                } else {
-                    // most likely a i32 overflow
-                    return None;
+            if value_index + 1 < token_index {
+                if value_index == 0 {
+                    result = tokens[value_index].get_opt_value()?;
                 }
+
+                result = process_operation(operator_type, result, tokens[value_index + 1].get_opt_value()?)?;
+                value_index += 1;
             } else {
                 // invalid expression
                 return None;
             }
-
-            // all tokens after the current aren't the first
-            first_token = false;
         }
-
-        index += 1;
     }
 
     Some(result)
 }
 
-fn process_operation(operator: &OperationType, value_a: i32, value_b: i32) -> Option<i32> {
+fn process_operation(operator: &OperationType, value_a: i64, value_b: i64) -> Option<i64> {
     match operator {
         OperationType::Addition => value_a.checked_add(value_b),
         OperationType::Subtraction => value_a.checked_sub(value_b),
-        _ => None,
     }
 }
 
@@ -73,22 +50,10 @@ mod tests {
     #[test]
     fn test_valid_add_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Addition,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Value(1),
+                Token::Operator(OperationType::Addition)
             ]),
             Some(2)
         )
@@ -97,22 +62,10 @@ mod tests {
     #[test]
     fn test_valid_sub_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Subtraction,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Value(1),
+                Token::Operator(OperationType::Subtraction)
             ]),
             Some(0)
         )
@@ -121,32 +74,12 @@ mod tests {
     #[test]
     fn test_valid_add_sub_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 2,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Addition,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Subtraction,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Value(1),
+                Token::Value(2),
+                Token::Operator(OperationType::Addition),
+                Token::Operator(OperationType::Subtraction)
             ]),
             Some(0)
         )
@@ -155,32 +88,12 @@ mod tests {
     #[test]
     fn test_valid_sub_add_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 2,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Subtraction,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Addition,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Value(1),
+                Token::Value(2),
+                Token::Operator(OperationType::Subtraction),
+                Token::Operator(OperationType::Addition)
             ]),
             Some(2)
         )
@@ -189,17 +102,9 @@ mod tests {
     #[test]
     fn test_invalid_add_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Addition,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Operator(OperationType::Addition)
             ]),
             None
         )
@@ -208,17 +113,9 @@ mod tests {
     #[test]
     fn test_invalid_sub_tokens() {
         assert_eq!(
-            process_token_list(&vec![
-                Token {
-                    value: 1,
-                    token_type: TokenType::Value,
-                    operation: OperationType::None,
-                },
-                Token {
-                    value: 0,
-                    token_type: TokenType::Operator,
-                    operation: OperationType::Subtraction,
-                },
+            process_token_list(&[
+                Token::Value(1),
+                Token::Operator(OperationType::Subtraction)
             ]),
             None
         )
@@ -240,7 +137,7 @@ mod tests {
     #[test]
     fn test_invalid_add_operator() {
         assert_eq!(
-            process_operation(&OperationType::Addition, i32::MAX, 1),
+            process_operation(&OperationType::Addition, i64::MAX, 1),
             None
         )
     }
@@ -248,7 +145,7 @@ mod tests {
     #[test]
     fn test_invalid_sub_operator() {
         assert_eq!(
-            process_operation(&OperationType::Subtraction, -i32::MAX, i32::MAX),
+            process_operation(&OperationType::Subtraction, i64::MIN, i64::MAX),
             None
         )
     }
